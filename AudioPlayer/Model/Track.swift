@@ -10,6 +10,7 @@ import Foundation
 struct Track {
     let title: String
     let artist: String
-    let duration: TimeInterval
+    let albumName: String
     let fileName: String
+    let duration: String
 }
