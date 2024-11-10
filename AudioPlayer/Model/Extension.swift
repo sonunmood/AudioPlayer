@@ -1,5 +1,5 @@
 //
-//  UIView + Extension.swift
+//  Extension.swift
 //  AudioPlayer
 //
 //  Created by Sonun Usubalieva on 10/11/24.

@@ -8,9 +8,8 @@
 import Foundation
 
 struct Track {
-    let title: String
     let artist: String
-    let albumName: String
+    let trackName: String
     let fileName: String
     let duration: String
 }

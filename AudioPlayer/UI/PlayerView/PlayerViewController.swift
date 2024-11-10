@@ -8,7 +8,7 @@
 import UIKit
 import MediaPlayer
 
-class PlayerViewController: UIViewController {
+final class PlayerViewController: UIViewController {
     
     static let shared = PlayerViewController()
     
@@ -31,7 +31,6 @@ class PlayerViewController: UIViewController {
     
     private lazy var nameLbl: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Don Toliver"
         lbl.textColor = .white
         lbl.textAlignment = .center
         lbl.font = .systemFont(ofSize: 18, weight: .bold)
@@ -40,9 +39,8 @@ class PlayerViewController: UIViewController {
         return lbl
     }()
     
-    private lazy var songNameLbl: UILabel = {
+    private lazy var trackNameLbl: UILabel = {
         let lbl = UILabel()
-        lbl.text = "What you need"
         lbl.textColor = .white
         lbl.textAlignment = .center
         lbl.numberOfLines = 3
@@ -106,16 +104,9 @@ class PlayerViewController: UIViewController {
         
         return btn
     }()
-    
-    
-    var trackIndex: Int = 0 {
-        didSet {
-            let name = names[trackIndex]
-            PlayerManager.shared.playTrack(named: name)
-        }
-    }
-    
-    private let names: [String] = ["a","e","s"]
+        
+    private(set) var trackIndex: Int = 0
+    private(set) var tracks: [Track] = []
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -126,6 +117,11 @@ class PlayerViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         previousBtn.isEnabled = trackIndex != 0
+    }
+    
+    func resetState(with tracks: [Track], startingAt index: Int) {
+        self.tracks = tracks
+        playTrack(at: index)
     }
 }
 
@@ -141,7 +137,7 @@ extension PlayerViewController {
             duretionSlider,
             timeLbl,
             durationLbl,
-            songNameLbl,
+            trackNameLbl,
             nameLbl,
             logoIV
         )
@@ -182,15 +178,15 @@ extension PlayerViewController {
             durationLbl.centerYAnchor.constraint(equalTo: timeLbl.centerYAnchor),
             durationLbl.trailingAnchor.constraint(equalTo: duretionSlider.trailingAnchor),
             
-            songNameLbl.bottomAnchor.constraint(equalTo: durationLbl.topAnchor,constant: -24),
-            songNameLbl.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            songNameLbl.rightAnchor.constraint(equalTo: view.rightAnchor,constant: -16),
-            songNameLbl.leftAnchor.constraint(equalTo: view.leftAnchor,constant: 16),
+            trackNameLbl.bottomAnchor.constraint(equalTo: durationLbl.topAnchor,constant: -24),
+            trackNameLbl.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            trackNameLbl.rightAnchor.constraint(equalTo: view.rightAnchor,constant: -16),
+            trackNameLbl.leftAnchor.constraint(equalTo: view.leftAnchor,constant: 16),
             
-            nameLbl.bottomAnchor.constraint(equalTo: songNameLbl.topAnchor,constant: -8),
+            nameLbl.bottomAnchor.constraint(equalTo: trackNameLbl.topAnchor,constant: -8),
             nameLbl.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            songNameLbl.rightAnchor.constraint(equalTo: view.rightAnchor,constant: -16),
-            songNameLbl.leftAnchor.constraint(equalTo: view.leftAnchor,constant: 16),
+            trackNameLbl.rightAnchor.constraint(equalTo: view.rightAnchor,constant: -16),
+            trackNameLbl.leftAnchor.constraint(equalTo: view.leftAnchor,constant: 16),
             
             logoIV.bottomAnchor.constraint(equalTo: nameLbl.topAnchor, constant: -24),
             logoIV.centerXAnchor.constraint(equalTo: view.centerXAnchor),
@@ -203,13 +199,28 @@ extension PlayerViewController {
     func addTargets(){
         playPauseBtn.addGestureRecognizer(
             UITapGestureRecognizer(target: self, action: #selector(playPauseTapped)))
-        duretionSlider.addTarget(self,
-                                 action: #selector(sliderValueChanged), for: .valueChanged)
+        duretionSlider.addTarget(
+            self,action: #selector(sliderValueChanged), for: .valueChanged)
         nextBtn.addTarget(self,
                           action: #selector(nextButtonTapped), for: .touchUpInside)
         previousBtn.addTarget(self,
                               action: #selector(previousButtonTapped), for: .touchUpInside)
-        closebtn.addTarget(self, action: #selector(didTapCloseBtn), for: .touchUpInside)
+        closebtn.addTarget(self,
+                           action: #selector(didTapCloseBtn), for: .touchUpInside)
+    }
+    
+    func playTrack(at index: Int) {
+        guard index >= 0, index < tracks.count else { return }
+        trackIndex = index
+        let fileName = tracks[trackIndex].fileName
+        PlayerManager.shared.playTrack(named: fileName)
+        setData()
+    }
+    
+    func setData() {
+        let data = tracks[trackIndex]
+        nameLbl.text = data.artist
+        trackNameLbl.text = data.trackName
     }
 }
 
@@ -225,23 +236,28 @@ extension PlayerViewController {
     }
     
     func nextButtonTapped() {
-        if trackIndex < names.count - 1 {
+        if trackIndex < tracks.count - 1 {
             trackIndex += 1
-            PlayerManager.shared.playTrack(named: names[trackIndex])
+            let fileName = tracks[trackIndex].fileName
+            PlayerManager.shared.playTrack(named: fileName)
             previousBtn.isEnabled = true
         } else {
             trackIndex = 0
-            PlayerManager.shared.playTrack(named: names[trackIndex])
+            let fileName = tracks[trackIndex].fileName
+            PlayerManager.shared.playTrack(named: fileName)
             previousBtn.isEnabled = false
         }
+        setData()
     }
     
     func previousButtonTapped() {
         if trackIndex > 0 {
             trackIndex -= 1
-            PlayerManager.shared.playTrack(named: names[trackIndex])
+            let fileName = tracks[trackIndex].fileName
+            PlayerManager.shared.playTrack(named: fileName)
             previousBtn.isEnabled = trackIndex != 0
         }
+        setData()
     }
     
     func sliderValueChanged(_ sender: UISlider) {
@@ -253,9 +269,9 @@ extension PlayerViewController {
 
         DispatchQueue.main.async {
             player.seek(to: targetTime) { _ in
-#if DEBUG
+                #if DEBUG
                 print("Seek operation completed.")
-#endif
+                #endif
             }
         }
     }
@@ -281,86 +297,5 @@ extension PlayerViewController: PlayerManagerDelegate {
         let durationMinutes = Int(duration) / 60
         let durationSeconds = Int(duration) % 60
         durationLbl.text = String(format: "%d:%02d", durationMinutes, durationSeconds)
-    }
-}
-
-
-
-
-
-
-
-
-protocol PlayerManagerDelegate: AnyObject {
-    func didFinishPlayingTrack()
-    func playerState(isOnPlay: Bool)
-    func didUpdateTime(currentTime: TimeInterval, duration: TimeInterval, progress: Float)
-}
-
-class PlayerManager {
-    static let shared = PlayerManager()
-    
-    var audioPlayer: AVPlayer?
-    private var currentTrack: String?
-    
-    weak var delegate: PlayerManagerDelegate?
-    
-    private init() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(trackDidFinishPlaying),
-            name: .AVPlayerItemDidPlayToEndTime,
-            object: nil
-        )
-    }
-    
-    func playTrack(named name: String) {
-        togglePlayback()
-        
-        guard currentTrack != name else { return }
-        
-        guard let url = Bundle.main.url(forResource: name, withExtension: "mp3")
-        else {
-#if DEBUG
-            print("Track not found: \(name)")
-#endif
-            return
-        }
-        
-        currentTrack = name
-        audioPlayer?.pause()
-        audioPlayer = AVPlayer(url: url)
-        audioPlayer?.play()
-  
-        audioPlayer?.addPeriodicTimeObserver(forInterval: CMTime(seconds: 1,
-                                                                 preferredTimescale: 1),
-                                             queue: .main) { [weak self] time in
-            guard let self = self,
-                  let duration = self.audioPlayer?.currentItem?.duration.seconds, duration.isFinite else { return }
-            let currentTime = time.seconds
-            let progress = Float(currentTime / duration)
-            self.delegate?.didUpdateTime(currentTime: currentTime, duration: duration, progress: progress)
-        }
-    }
-    
-    func togglePlayback() {
-        guard let player = audioPlayer else { return }
-        if player.timeControlStatus == .playing {
-            player.pause()
-            delegate?.playerState(isOnPlay: false)
-        } else {
-            player.play()
-            delegate?.playerState(isOnPlay: true)
-        }
-    }
-    
-    func stopPlayback() {
-        audioPlayer?.pause()
-        audioPlayer = nil
-        currentTrack = nil
-    }
-    
-    @objc private func trackDidFinishPlaying() {
-        delegate?.didFinishPlayingTrack()
     }
 }
